@@ -31,7 +31,8 @@ class CianParser:
 
         self.__parser__ = None
         self.__session__ = cloudscraper.create_scraper()
-        self.__session__.headers = {'Accept-Language': 'en'}
+        self.__session__.headers = {'Accept-Language': 'en', 
+                                    'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
         self.__proxy_pool__ = ProxyPool(proxies=proxies)
         self.__location_name__ = location
         self.__location_id__ = location_id
@@ -40,8 +41,10 @@ class CianParser:
         if self.__proxy_pool__.is_empty():
             return
         available_proxy = self.__proxy_pool__.get_available_proxy(url_list)
+        
         if available_proxy is not None:
-            self.__session__.proxies = {"https": available_proxy}
+            proxy_string = f"http://{available_proxy}"
+            self.__session__.proxies = {"http": proxy_string, "https": proxy_string}
 
     def __load_list_page__(self, url_list_format, page_number, attempt_number_exception):
         url_list = url_list_format.format(page_number)
@@ -69,6 +72,7 @@ class CianParser:
             page_parsed = False
             page_number += 1
             attempt_number_exception = 0
+            seen_items = len(self.__parser__.result)
 
             while attempt_number_exception < 3 and not page_parsed:
                 try:
@@ -77,6 +81,14 @@ class CianParser:
                         page_number=page_number,
                         count_of_pages=self.__parser__.end_page + 1 - self.__parser__.start_page,
                         attempt_number=attempt_number_exception)
+                    
+                    if seen_items == len(self.__parser__.result):
+                        print(f"No new items, finishing...\n")
+                        end_all_parsing = True
+                        break
+                    else:
+                        seen_items = len(self.__parser__.result)
+
 
                 except Exception as e:
                     attempt_number_exception += 1

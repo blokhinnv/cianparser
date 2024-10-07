@@ -4,6 +4,16 @@ import urllib.error
 import bs4
 import random
 import socket
+import re
+
+def build_proxy_string(proxy: str) -> str:
+    if "@" in proxy:
+        assert re.match(r"\w+:\w+@\d+\.\d+\.\d+\.\d+\.:\d+", proxy) is not None
+    else:
+        assert re.match(r"\d+\.\d+\.\d+\.\d+\.:\d+", proxy) is not None
+
+    return f"http://{proxy}"
+
 
 
 class ProxyPool:
@@ -17,14 +27,25 @@ class ProxyPool:
         return page_soup.text.find("Captcha") > 0
 
     def __is_available_proxy__(self, url, proxy):
-        opener = urllib.request.build_opener(urllib.request.ProxyHandler({'https': proxy}))
-        opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+        proxy_string = build_proxy_string(proxy)        
+        # Use the formatted proxy for both http and https
+        proxy_handler = urllib.request.ProxyHandler({
+            'http': proxy_string,
+            'https': proxy_string
+        })
+        
+        # Create an opener with the proxy
+        opener = urllib.request.build_opener(proxy_handler)
+        opener.addheaders = [('User-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3')]
+        
+        # Install the opener as the default opener for urllib
         urllib.request.install_opener(opener)
 
         try:
+            # Fetch the page using the opener with proxy
             self.__page_html__ = urllib.request.urlopen(urllib.request.Request(url))
         except Exception as detail:
-            print(f"atas: {detail}..")
+            print(f"Error: {detail}")
             return False
 
         return True
